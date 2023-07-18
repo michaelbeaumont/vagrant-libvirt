@@ -124,6 +124,23 @@ describe VagrantPlugins::ProviderLibvirt::Action::CreateDomain do
         end
       end
 
+      context 'nvram disks' do
+        let(:domain_xml_file) { 'default_domain_nvram.xml' }
+
+        before do
+          env[:nvram] = "/path/to/nvram/file1"
+        end
+
+        context 'vram set' do
+          it 'should set os.nvram' do
+            expect(ui).to receive(:info)
+            expect(servers).to receive(:create).with(xml: domain_xml).and_return(machine)
+
+            expect(subject.call(env)).to be_nil
+          end
+        end
+      end
+
       context 'with custom disk device setting' do
         let(:domain_xml_file) { 'custom_disk_settings.xml' }
 

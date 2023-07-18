@@ -291,6 +291,7 @@ describe VagrantPlugins::ProviderLibvirt::Action::HandleBoxImage do
             }
           ]
         )
+        expect(env[:nvram]).to eq(nil)
       end
 
       context 'when none of the disks in storage pool' do
@@ -374,6 +375,54 @@ describe VagrantPlugins::ProviderLibvirt::Action::HandleBoxImage do
           expect(subject).not_to receive(:upload_image)
           expect(subject.call(env)).to be_nil
         end
+      end
+    end
+
+    context 'when one disk in metadata.json is nvram' do
+      let(:status) { double }
+
+      before do
+        allow(all).to receive(:first).and_return(box_volume)
+        allow(box_volume).to receive(:id).and_return(1)
+        allow(env[:machine]).to receive_message_chain("box.name") { 'test' }
+        allow(env[:machine]).to receive_message_chain("box.version") { '1.1.1' }
+        allow(env[:machine]).to receive_message_chain("box.metadata") { Hash[
+          'disks' => [
+            {
+              'path' => 'box.img',
+              'name' => 'send_box_name',
+            },
+            {
+              'path' => 'vars.fd',
+              'type' => 'nvram',
+            },
+          ],
+        ]}
+        allow(env[:machine]).to receive_message_chain("box.directory.join") do |arg|
+          '/test/' + arg.to_s
+        end
+        allow(status).to receive(:success?).and_return(true)
+        allow(Open3).to receive(:capture3).with('qemu-img', 'info', '--output=json', '/test/box.img').and_return([
+          qemu_json_return_5G, "", status
+        ])
+      end
+
+      it 'should have one disk and one nvram in machine env' do
+        expect(subject.call(env)).to be_nil
+        expect(env[:box_volume_number]).to eq(1)
+        expect(env[:box_volumes]).to eq(
+          [
+            {
+              :path=>"/test/box.img",
+              :name=>"test_vagrant_box_image_1.1.1_send_box_name.img",
+              :virtual_size=>byte_number_5G,
+              :format=>"qcow2",
+              :device=>'vda',
+              :compat=>"0.10"
+            }
+          ]
+        )
+        expect(env[:nvram]).to eq("/test/vars.fd")
       end
     end
 

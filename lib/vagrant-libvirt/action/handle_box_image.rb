@@ -27,7 +27,7 @@ module VagrantPlugins
           # Handle box formats converting between v1 => v2 and ensuring
           # any obsolete settings are rejected.
 
-          disks = env[:machine].box.metadata.fetch('disks', [])
+          disks = env[:machine].box.metadata.fetch('disks', []).reject{|disk| disk['type'] == 'nvram'}
           if disks.empty?
             # Handle box v1 format
 
@@ -52,16 +52,22 @@ module VagrantPlugins
             #   'name': '<name-to-use-in-storage>' # optional, will use index
             # }
             #
-            env[:box_volume_number] = disks.length()
             target_volumes = Hash[]
-            env[:box_volumes] = Array.new(env[:box_volume_number]) { |i|
-              raise Errors::BoxFormatMissingAttribute, attribute: "disks[#{i}]['path']" if disks[i]['path'].nil?
 
-              image_path = HandleBoxImage.get_box_image_path(env[:machine].box, disks[i]['path'])
+            nvram_path = env[:machine].box.metadata.fetch('disks', [])
+              .filter{|disk| disk['type'] == 'nvram'}.map{|disk| disk['path']}
+            if not nvram_path.empty?
+              env[:nvram] = HandleBoxImage.get_box_image_path(env[:machine].box, nvram_path[0])
+            end
+
+            env[:box_volumes] = disks.each_with_index.collect{|disk, i|
+              raise Errors::BoxFormatMissingAttribute, attribute: "disks[#{i}]['path']" if disk['path'].nil?
+
+              image_path = HandleBoxImage.get_box_image_path(env[:machine].box, disk['path'])
               format, virtual_size, compat = HandleBoxImage.get_box_disk_settings(image_path)
               volume_name = HandleBoxImage.get_volume_name(
                 env[:machine].box,
-                disks[i].fetch('name', disks[i]['path'].sub(/#{File.extname(disks[i]['path'])}$/, '')),
+                disk.fetch('name', disk['path'].sub(/#{File.extname(disk['path'])}$/, '')),
                 image_path,
                 env[:ui],
               )
@@ -81,6 +87,7 @@ module VagrantPlugins
                 :compat => compat,
               }
             }
+            env[:box_volume_number] = env[:box_volumes].length()
           end
 
           # Get config options

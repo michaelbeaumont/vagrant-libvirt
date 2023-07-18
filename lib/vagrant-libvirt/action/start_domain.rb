@@ -531,7 +531,9 @@ module VagrantPlugins
           end
 
           nvram = REXML::XPath.first(xml_descr, '/domain/os/nvram')
-          if config.nvram
+
+          nvram_path = config.nvram || env[:nvram]
+          if nvram_path
             if nvram.nil?
               descr_changed = true
               nvram = REXML::Element.new('nvram')

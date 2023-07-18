@@ -49,7 +49,7 @@ module VagrantPlugins
           @cpu_fallback = config.cpu_fallback
           @numa_nodes = config.numa_nodes
           @loader = config.loader
-          @nvram = config.nvram
+          @nvram = config.nvram || env[:nvram]
           @machine_type = config.machine_type
           @machine_arch = config.machine_arch
           @disk_controller_model = config.disk_controller_model
